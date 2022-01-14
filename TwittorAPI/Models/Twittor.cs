@@ -1,19 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 
-namespace TwittorAPI.Model
+#nullable disable
+
+namespace TwittorAPI.Models
 {
-    public class Twittor
+    public partial class Twittor
     {
-        [Key]
-        [Required]
-        public int TwittorId { get; set; }
-        public int UserId { get; set; }
-        public string TwitBody { get; set; }
-        public DateTime CreatedDate { get; set; }
+        public Twittor()
+        {
+            Comments = new HashSet<Comment>();
+        }
 
-        public User User { get; set; }
-        public ICollection<Comment> Comments { get; set; }
+        public int TwittorId { get; set; }
+        public string TwitBody { get; set; }
+        public int UserId { get; set; }
+        public DateTime Created { get; set; }
+
+        public virtual User User { get; set; }
+        public virtual ICollection<Comment> Comments { get; set; }
     }
 }

@@ -1,20 +1,16 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
-namespace TwittorAPI.Model
+#nullable disable
+
+namespace TwittorAPI.Models
 {
-    public class Comment
+    public partial class Comment
     {
-        [Key]
         public int CommentId { get; set; }
-
-        [Required]
-        [MaxLength(280)]
         public string CommentBody { get; set; }
-
-        [Required]
         public int TwittorId { get; set; }
 
-        public Twittor Twittor { get; set; }
+        public virtual Twittor Twittor { get; set; }
     }
 }

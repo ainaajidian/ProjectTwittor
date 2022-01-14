@@ -1,24 +1,25 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.Collections.Generic;
 
-namespace TwittorAPI.Model
+#nullable disable
+
+namespace TwittorAPI.Models
 {
-    public class User
+    public partial class User
     {
-        [Key]
-        [Required]
-        public int UserId { get; set; }
-        [Required] 
-        public string Fullname { get; set; }
-        [Required] 
-        public string Email { get; set; }
-        [Required] 
-        public string Username { get; set; }
-        [Required] 
-        public string Password { get; set; }
-        [Required] 
-        public bool IsLocked { get; set; }
+        public User()
+        {
+            Twittors = new HashSet<Twittor>();
+            UserRoles = new HashSet<UserRole>();
+        }
 
-        public ICollection<Twittor> Twittors { get; set; }
+        public int UserId { get; set; }
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+
+        public virtual ICollection<Twittor> Twittors { get; set; }
+        public virtual ICollection<UserRole> UserRoles { get; set; }
     }
 }

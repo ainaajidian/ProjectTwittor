@@ -1,14 +1,20 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.Collections.Generic;
 
-namespace TwittorAPI.Model
+#nullable disable
+
+namespace TwittorAPI.Models
 {
-    public class Role
+    public partial class Role
     {
-        [Key]
+        public Role()
+        {
+            UserRoles = new HashSet<UserRole>();
+        }
+
         public int RoleId { get; set; }
         public string RoleName { get; set; }
 
-        public ICollection<UserRole> UserRoles { get; set; }
+        public virtual ICollection<UserRole> UserRoles { get; set; }
     }
 }
