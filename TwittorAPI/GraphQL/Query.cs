@@ -14,6 +14,7 @@ namespace TwittorAPI.GraphQL
 {
     public class Query
     {
+        //Show All Twit
         public async Task<IQueryable<Twittor>> GetTwittors(
             [Service] ProjectTwittorContext context,
             [Service] IOptions<KafkaSettings> kafkaSettings)
@@ -25,6 +26,7 @@ namespace TwittorAPI.GraphQL
             return context.Twittors;
         }
 
+        //Show Profile
         public async Task<IQueryable<UserData>> GetUsers(
             [Service] ProjectTwittorContext context,
             [Service] IOptions<KafkaSettings> kafkaSettings)
@@ -39,8 +41,18 @@ namespace TwittorAPI.GraphQL
                 Email = p.Email,
                 Username = p.Username
             });
+        }
 
+        //Show All User Role
+        public async Task<IQueryable<UserRole>> GetUserRoles(
+            [Service] ProjectTwittorContext context,
+            [Service] IOptions<KafkaSettings> kafkaSettings)
+        {
+            var key = "GetUserRoles-" + DateTime.Now.ToString();
+            var val = JObject.FromObject(new { Message = "GraphQL Query GetUserRoles" }).ToString(Formatting.None);
 
+            await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+            return context.UserRoles;
         }
     }
 }
