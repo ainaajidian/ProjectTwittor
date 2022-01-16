@@ -7,14 +7,14 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: 'true'
 spec:
   rules:
-    - host: devbootcamp-graphql.com
+    - host: studikasus2.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: twittorapp-clusterip-srv
+                name: twittorapi-clusterip-srv
                 port:
                   number: 80
           - path: /
@@ -29,5 +29,12 @@ spec:
             backend:
               service:
                 name: kafkalistening-clusterip-srv
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kafkacreatetopics-clusterip-srv
                 port:
                   number: 80

@@ -34,8 +34,14 @@ namespace TwittorAPI
         {
             //var conString = Configuration.GetConnectionString("DefaultConnection");
 
+            // services.AddDbContext<ProjectTwittorContext>(options =>
+            //      options.UseSqlServer(Configuration.GetConnectionString("LocalConnection")));
+
+            var conString = Configuration.GetConnectionString("LocalConnection");
+
             services.AddDbContext<ProjectTwittorContext>(options =>
-                 options.UseSqlServer(Configuration.GetConnectionString("LocalConnection")));
+                 options.UseSqlServer(conString)
+            );
 
             services.Configure<KafkaSettings>(Configuration.GetSection("KafkaSettings"));
             // graphql

@@ -1,31 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: twittorapp-depl
+  name: kafkacreatetopics-depl
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: twittorapp
+      app: kafkacreatetopics
   template:
     metadata:
       labels:
-        app: twittorapp
+        app: kafkacreatetopics
     spec:
       containers:
-      - name: twittorapp
-        image: ainaajidian/twittorapp:latest
+      - name: kafkacreatetopics
+        image: ainaajidian/kafkacreatetopics:latest
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: twittorapp-clusterip-srv
+  name: kafkacreatetopics-clusterip-srv
 spec:
   type: ClusterIP
   selector:
-    app: twittorapp
+    app: kafkacreatetopics
   ports:
-  - name: twittorapp
+  - name: kafkacreatetopics
     protocol: TCP
     port: 80
     targetPort: 80
