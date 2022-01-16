@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using HotChocolate;
+using HotChocolate.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
@@ -18,6 +19,7 @@ namespace TwittorAPI.GraphQL
 {
     public class Mutation
     {
+        [Authorize(Roles = new[] { "MEMBER" })]
         public async Task<TransactionStatus> AddTwittorAsync(
             TwittorInput input,
             [Service] IOptions<KafkaSettings> kafkaSettings)
@@ -42,9 +44,10 @@ namespace TwittorAPI.GraphQL
             return await Task.FromResult(ret);
         }
 
+        [Authorize(Roles = new[] { "MEMBER" })]
         public async Task<TransactionStatus> AddCommentAsync(
-            CommentInput input,
-            [Service] IOptions<KafkaSettings> kafkaSettings)
+                    CommentInput input,
+                    [Service] IOptions<KafkaSettings> kafkaSettings)
         {
             var comment = new Comment
             {
@@ -142,16 +145,16 @@ namespace TwittorAPI.GraphQL
                 return await Task.FromResult(
                     new UserToken(new JwtSecurityTokenHandler().WriteToken(jwtToken),
                     expired.ToString(), null));
-                //return new JwtSecurityTokenHandler().WriteToken(jwtToken);
             }
 
             return await Task.FromResult(new UserToken(null, null, Message: "Username or password was invalid"));
         }
 
+        [Authorize(Roles = new[] { "MEMBER", "ADMIN" })]
         public async Task<TransactionStatus> EditProfileAsync(
-            UpdateProfileInput input,
-            [Service] ProjectTwittorContext context,
-            [Service] IOptions<KafkaSettings> kafkaSettings)
+                    UpdateProfileInput input,
+                    [Service] ProjectTwittorContext context,
+                    [Service] IOptions<KafkaSettings> kafkaSettings)
         {
             var profile = context.Users.Where(o => o.UserId == input.UserId).FirstOrDefault();
             if (profile != null)
@@ -161,9 +164,9 @@ namespace TwittorAPI.GraphQL
                 profile.Username = input.Username;
                 profile.Password = BCrypt.Net.BCrypt.HashPassword(input.Password);
 
-                var key = "edit-profile-" + DateTime.Now.ToString();
+                var key = "update-profile-" + DateTime.Now.ToString();
                 var val = JObject.FromObject(profile).ToString(Formatting.None);
-                var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "editprofile", key, val);
+                var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "updateprofile", key, val);
                 await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
 
                 var ret = new TransactionStatus(result, "");
@@ -177,10 +180,11 @@ namespace TwittorAPI.GraphQL
             }
         }
 
+        [Authorize(Roles = new[] { "MEMBER", "ADMIN" })]
         public async Task<TransactionStatus> ChangePasswordAsync(
-            ChangePasswordInput input,
-            [Service] ProjectTwittorContext context,
-            [Service] IOptions<KafkaSettings> kafkaSettings)
+                    ChangePasswordInput input,
+                    [Service] ProjectTwittorContext context,
+                    [Service] IOptions<KafkaSettings> kafkaSettings)
         {
             var akun = context.Users.Where(o => o.Username == input.Username).FirstOrDefault();
             if (akun != null)
@@ -202,26 +206,144 @@ namespace TwittorAPI.GraphQL
             }
         }
 
+        [Authorize(Roles = new[] { "MEMBER" })]
         public async Task<TransactionStatus> DeleteTwittorAsync(
-            int Id,
+            int userId,
             [Service] ProjectTwittorContext context,
             [Service] IOptions<KafkaSettings> kafkaSettings)
         {
-            var tweet = context.Twittors.Where(o => o.UserId == Id).ToList();
-            if (tweet != null)
+            var twets = context.Twittors.Where(o => o.UserId == userId).ToList();
+            bool check = false;
+            if (twets != null)
             {
-                var key = "delete-tweet-" + DateTime.Now.ToString();
-                var val = JObject.FromObject(tweet).ToString(Formatting.None);
-                var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "delete tweet", key, val);
+                foreach (var twet in twets)
+                {
+                    var key = "delete-tweet-" + DateTime.Now.ToString();
+                    var val = JObject.FromObject(twet).ToString(Formatting.None);
+                    var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "deletetweet", key, val);
+                    await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+                    var ret = new TransactionStatus(result, "");
+                    check = true;
+
+                }
+                if (!check)
+                    return new TransactionStatus(false, "Failed to submit data");
+                return await Task.FromResult(new TransactionStatus(true, ""));
+            }
+            else
+            {
+                return new TransactionStatus(false, "User has not tweeted yet");
+            }
+        }
+
+        public async Task<TransactionStatus> AddRoleAsync(
+            string roleName,
+            [Service] ProjectTwittorContext context,
+            [Service] IOptions<KafkaSettings> kafkaSettings)
+        {
+            var role = context.Roles.Where(o => o.RoleName == roleName).FirstOrDefault();
+            if (role != null)
+            {
+                return new TransactionStatus(false, "Role already exist");
+            }
+            var newRole = new Role
+            {
+                RoleName = roleName
+            };
+
+            var key = "role-add-" + DateTime.Now.ToString();
+            var val = JObject.FromObject(newRole).ToString(Formatting.None);
+            var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "role", key, val);
+            await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+
+            var ret = new TransactionStatus(result, "");
+            if (!result)
+                ret = new TransactionStatus(result, "Failed to submit data");
+
+            return await Task.FromResult(ret);
+        }
+
+        [Authorize(Roles = new[] { "ADMIN" })]
+        public async Task<TransactionStatus> AddRoleToUserAsync(
+            UserRoleInput input,
+            [Service] ProjectTwittorContext context,
+            [Service] IOptions<KafkaSettings> kafkaSettings)
+        {
+            var userRole = context.UserRoles.Where(o => o.UserId == input.UserId &&
+            o.RoleId == input.RoleId).FirstOrDefault();
+            if (userRole != null)
+            {
+                return new TransactionStatus(false, "Role already exist in this user");
+            }
+
+            var newUserRole = new UserRole
+            {
+                UserId = input.UserId,
+                RoleId = input.RoleId
+            };
+
+            var key = "user-role-add-" + DateTime.Now.ToString();
+            var val = JObject.FromObject(newUserRole).ToString(Formatting.None);
+            var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "userrole", key, val);
+            await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+
+            var ret = new TransactionStatus(result, "");
+            if (!result)
+                ret = new TransactionStatus(result, "Failed to submit data");
+
+            return await Task.FromResult(ret);
+        }
+
+        [Authorize(Roles = new[] { "ADMIN" })]
+        public async Task<TransactionStatus> ChangeUserRoleAsync(
+            UserRoleInput input,
+            [Service] ProjectTwittorContext context,
+            [Service] IOptions<KafkaSettings> kafkaSettings)
+        {
+            var userRole = context.UserRoles.Where(o => o.UserId == input.UserId).FirstOrDefault();
+            if (userRole != null)
+            {
+                userRole.RoleId = input.RoleId;
+                var key = "change-user-role-" + DateTime.Now.ToString();
+                var val = JObject.FromObject(userRole).ToString(Formatting.None);
+                var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "changeuserrole", key, val);
                 await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+
                 var ret = new TransactionStatus(result, "");
                 if (!result)
                     ret = new TransactionStatus(result, "Failed to submit data");
                 return await Task.FromResult(ret);
+            };
+            return new TransactionStatus(false, "User doesn't exist");
+        }
+
+        [Authorize(Roles = new[] { "ADMIN" })]
+        public async Task<TransactionStatus> LockUserAsync(
+            int userId,
+            [Service] ProjectTwittorContext context,
+            [Service] IOptions<KafkaSettings> kafkaSettings)
+        {
+            var userRoles = context.UserRoles.Where(o => o.UserId == userId).ToList();
+            bool check = false;
+            if (userRoles != null)
+            {
+                foreach (var userRole in userRoles)
+                {
+                    var key = "Lock-User-" + DateTime.Now.ToString();
+                    var val = JObject.FromObject(userRole).ToString(Formatting.None);
+                    var result = await KafkaHelper.SendMessage(kafkaSettings.Value, "lockuser", key, val);
+                    await KafkaHelper.SendMessage(kafkaSettings.Value, "logging", key, val);
+                    var ret = new TransactionStatus(result, "");
+                    check = true;
+                };
+
+                if (!check)
+                    return new TransactionStatus(false, "Failed to submit data");
+                return await Task.FromResult(new TransactionStatus(true, ""));
             }
             else
             {
-                return new TransactionStatus(false, "User has zero twit");
+                return new TransactionStatus(false, "User doesnt have any role yet");
             }
         }
     }
